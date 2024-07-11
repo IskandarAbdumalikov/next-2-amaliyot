@@ -1,54 +1,39 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import "./users.scss";
 import { IoLockClosedOutline, IoLockOpenOutline } from "react-icons/io5";
-import { FaRegTrashAlt } from "react-icons/fa";
-import { deleteData } from "@/hooks/fetchUser";
+import {
+  useDeleteUserMutation,
+  useEditUserMutation,
+  useGetUsersQuery,
+} from "@/lib/api/userApi";
+import EditModule from "./EditUser";
 
-const Users = ({ data }) => {
-  const [selectedUsers, setSelectedUsers] = useState([]);
+const Users = () => {
+  const { data, refetch } = useGetUsersQuery();
+  const [deleteUser] = useDeleteUserMutation();
+  const [selectedUser, setSelectedUser] = useState(null);
+  const userRole = localStorage.getItem("role");
 
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedUsers(data.map((user) => user._id));
-    } else {
-      setSelectedUsers([]);
+  const handleDelete = (id) => {
+    if (confirm("Are you sure?")) {
+      deleteUser(id);
+      alert("User successfully deleted");
+      refetch();
     }
   };
 
-  const handleSelectUser = (e, userId) => {
-    if (e.target.checked) {
-      setSelectedUsers((prevSelected) => [...prevSelected, userId]);
-    } else {
-      setSelectedUsers((prevSelected) =>
-        prevSelected.filter((id) => id !== userId)
-      );
-    }
+  const handleEdit = (user) => {
+    setSelectedUser(user);
   };
 
-  useEffect(() => {
-    if (selectedUsers.length === data.length) {
-      document.getElementById("selectAll").checked = true;
-    } else {
-      document.getElementById("selectAll").checked = false;
-    }
-  }, [selectedUsers, data]);
-
-  
-  const handleDelete = async () => {
-    if (confirm("Are you sure")) {
-      try {
-        const result = await deleteData(selectedUsers);
-        console.log(result);
-        setSelectedUsers([]);
-      } catch (error) {
-        console.error(error);
-      }
-    }
+  const closeEditModule = () => {
+    setSelectedUser(null);
+    refetch();
   };
 
   return (
-    <div className="users">
+    <div className="users container mx-auto max-w-[1440px]">
       <div className="users__btns">
         <button className="button__block">
           <IoLockClosedOutline />
@@ -57,49 +42,64 @@ const Users = ({ data }) => {
         <button>
           <IoLockOpenOutline />
         </button>
-        <button onClick={handleDelete}>
-          <FaRegTrashAlt />
-        </button>
       </div>
       <h2>Users table</h2>
       <table>
         <thead>
           <tr>
-            <th>
-              <input
-                type="checkbox"
-                id="selectAll"
-                onChange={handleSelectAll}
-              />
-            </th>
             <th>ID</th>
             <th>Name</th>
             <th>Email</th>
-            <th>Last Login Time</th>
-            <th>Registration Time</th>
-            <th>Status</th>
+            <th>Role</th>
+            {userRole === "admin" && (
+              <>
+                <th>Delete</th>
+                <th>Edit</th>
+              </>
+            )}
           </tr>
         </thead>
         <tbody>
           {data?.map((user) => (
-            <tr key={user._id}>
-              <td>
-                <input
-                  type="checkbox"
-                  checked={selectedUsers.includes(user._id)}
-                  onChange={(e) => handleSelectUser(e, user._id)}
-                />
-              </td>
-              <td>{user._id}</td>
+            <tr key={user.id}>
+              <td>{user.id}</td>
               <td>{user.name}</td>
               <td>{user.email}</td>
-              <td>{user.lstLogTime}</td>
-              <td>{user.regTime}</td>
-              <td>{user.status ? "Active" : "Blocked"}</td>
+              <td>{user.role}</td>
+              {userRole === "admin" && (
+                <>
+                  <td>
+                    <button
+                      className="bg-red-600 text-white rounded-[5px] p-[5px]"
+                      onClick={() => handleDelete(user.id)}
+                    >
+                      Delete User
+                    </button>
+                  </td>
+                  <td>
+                    <button
+                      className="bg-green-600 text-white rounded-[5px] p-[5px]"
+                      onClick={() => handleEdit(user)}
+                    >
+                      Edit User
+                    </button>
+                  </td>
+                </>
+              )}
             </tr>
           ))}
         </tbody>
       </table>
+      {selectedUser ? (
+        <EditModule user={selectedUser} onClose={closeEditModule} />
+      ) : (
+        <></>
+      )}
+      {selectedUser ? (
+        <div onClick={closeEditModule} className="overlay"></div>
+      ) : (
+        <></>
+      )}
     </div>
   );
 };
